@@ -20,7 +20,7 @@ def download_stock_data(tickers, start, end):
     try:
         import yfinance as yf
     except ImportError:
-        !pip install yfinance
+        # pip install yfinance
         import yfinance as yf
 
     import pandas as pd
