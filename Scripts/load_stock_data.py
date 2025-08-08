@@ -37,3 +37,43 @@ def download_stock_data(tickers, start, end):
     df.index = pd.to_datetime(df.index)
 
     return df
+
+def inspect_and_clean_df(df, method="linear"):
+    """
+    Inspect data types, missing values, and clean missing data.
+
+    Parameters:
+    -----------
+    df : pd.DataFrame
+        The DataFrame to inspect and clean.
+    method : str, optional (default="linear")
+        The fill method to use for missing values:
+        - "ffill": Forward fill
+        - "linear": Linear interpolation
+
+    Returns:
+    --------
+    pd.DataFrame
+        Cleaned DataFrame with missing values handled.
+    """
+    import pandas as pd
+
+    # Show column data types
+    print("Data types of each column:")
+    print(df.dtypes)
+
+    # Show missing values
+    print("\n Missing values per column:")
+    print(df.isna().sum())
+
+    # Handle missing values
+    if method == "ffill":
+        cleaned_df = df.fillna(method='ffill')
+    elif method == "linear":
+        cleaned_df = df.interpolate(method='linear')
+    else:
+        raise ValueError("Invalid method. Use 'ffill' or 'linear'.")
+
+    print(f"\n Cleaned using '{method}' method.")
+    return cleaned_df
+
