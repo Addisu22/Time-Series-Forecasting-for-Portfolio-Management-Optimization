@@ -140,7 +140,7 @@ def compute_returns(df):
     
     # Combine
     returns_df = pd.concat([simple_returns, log_returns], axis=1)
-    return returns_df
+    return returns_df,   log_returns
 
 def calculate_annualized_stats(returns_df, trading_days=252):
     """
