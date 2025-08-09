@@ -190,14 +190,11 @@ def plot_prices_and_returns(df, returns):
     plt.tight_layout()
     plt.show()
 
-def plot_rolling_volatility(log_returns, window=30):
+def plot_rolling_volatility_30d(log_returns):
     """
-    Plot rolling annualized volatility for each asset in the log returns DataFrame.
-
-    Parameters:
-    - log_returns (pd.DataFrame): DataFrame of daily log returns for each asset.
-    - window (int): Rolling window size in days (default is 30).
+    Plot 30-day rolling annualized volatility for each asset.
     """
+    window = 30
     rolling_std = log_returns.rolling(window).std()
 
     plt.figure(figsize=(14, 6))
