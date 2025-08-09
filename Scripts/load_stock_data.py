@@ -1,3 +1,12 @@
+import numpy as np
+import pandas as pd
+from scipy.stats import norm
+import matplotlib.pyplot as plt
+import yfinance as yf
+import seaborn as sns
+from scipy.stats import zscore
+from statsmodels.tsa.stattools import adfuller
+
 def download_stock_data(tickers, start, end):
     """
     Downloads historical closing prices for a list of tickers
