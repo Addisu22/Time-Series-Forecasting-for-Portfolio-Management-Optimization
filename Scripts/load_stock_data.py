@@ -1,229 +1,114 @@
-import numpy as np
-import pandas as pd
-from scipy.stats import norm
-import matplotlib.pyplot as plt
 import yfinance as yf
-import seaborn as sns
-from scipy.stats import zscore
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
 from statsmodels.tsa.stattools import adfuller
+from IPython.display import display
 
-def download_stock_data(tickers, start, end):
+
+def download_data(tickers, start, end):
     """
-    Downloads historical closing prices for a list of tickers
-    using yfinance between the specified start and end dates.
-
-    Parameters:
-    -----------
-    tickers : list
-        List of stock ticker symbols (e.g., ['TSLA', 'AAPL', 'SPY'])
-    start : str
-        Start date in 'YYYY-MM-DD' format
-    end : str
-        End date in 'YYYY-MM-DD' format
-
-    Returns:
-    --------
-    pd.DataFrame
-        DataFrame containing closing prices for each ticker
+    Download adjusted close prices for given tickers and date range.
     """
     try:
-        import yfinance as yf
-    except ImportError:
-        # pip install yfinance
-        import yfinance as yf
+        data = yf.download(tickers, start=start, end=end, progress=False)
+        if data.isnull().values.any():
+            print("Warning: Missing values detected in downloaded data.")
+        return data
+    except Exception as e:
+        print(f"Error downloading data: {e}")
+        return None
 
-    import pandas as pd
-
-    df = pd.DataFrame()
-
-    for tick in tickers:
-        ydata = yf.download(tick, start=start, end=end)
-        if 'Close' in ydata.columns:
-            df[tick] = ydata['Close']
-        else:
-            print(f"Warning: 'Close' column not found for {tick}")
-
-    df.index = pd.to_datetime(df.index)
-
-    return df
-
-def inspect_and_clean_df(df, method="linear"):
+def clean_data(df):
     """
-    Inspect data types, missing values, and clean missing data.
-
-    Parameters:
-    -----------
-    df : pd.DataFrame
-        The DataFrame to inspect and clean.
-    method : str, optional (default="linear")
-        The fill method to use for missing values:
-        - "ffill": Forward fill
-        - "linear": Linear interpolation
-
-    Returns:
-    --------
-    pd.DataFrame
-        Cleaned DataFrame with missing values handled.
+    Clean data by forward-fill and backward-fill missing values.
     """
-    import pandas as pd
-
-    # Show column data types
-    print("Data types of each column:")
-    print(df.dtypes)
-
-    # Show missing values
-    print("\n Missing values per column:")
-    print(df.isna().sum())
-
-    # Handle missing values
-    if method == "ffill":
-        cleaned_df = df.fillna(method='ffill')
-    elif method == "linear":
-        cleaned_df = df.interpolate(method='linear')
-    else:
-        raise ValueError("Invalid method. Use 'ffill' or 'linear'.")
-
-    print(f"\n Cleaned using '{method}' method.")
-    return cleaned_df
-
-import pandas as pd
-
-def handle_missing_values(df, method="ffill", fill_value=None):
-    """
-    Handles missing values in a DataFrame.
-
-    Parameters:
-        df (pd.DataFrame): The input DataFrame.
-        method (str): The method to handle missing values.
-                      Options: 'ffill', 'zero', 'interpolate', 'drop'
-        fill_value (any): Value to use if method='zero' or a custom fill.
-
-    Returns:
-        pd.DataFrame: DataFrame with missing values handled.
-    """
-    if method == "ffill":
-        return df.fillna(method='ffill')
-    elif method == "zero":
-        return df.fillna(0 if fill_value is None else fill_value)
-    elif method == "interpolate":
-        return df.interpolate(method='linear')
-    elif method == "drop":
-        return df.dropna()
-    else:
-        raise ValueError("Invalid method. Choose from 'ffill', 'zero', 'interpolate', 'drop'.")
-def clean_and_align(df):
-    """
-    Remove any rows with missing values from a DataFrame 
-    and return the cleaned DataFrame.
-    """
-    df_clean = df.dropna(how='any')
-    print("Downloaded Data shape:", df_clean.shape)
-    display(df_clean.head())
+    df_clean = df.copy()
+    df_clean = df_clean.ffill().bfill()
     return df_clean
-def compute_returns(df):
-    """
-    Compute simple daily returns and log returns from a price DataFrame.
 
-    Parameters:
-    df (pd.DataFrame): Price DataFrame with dates as index and tickers as columns.
-
-    Returns:
-    pd.DataFrame: DataFrame containing both simple and log returns.
+def basic_stats(df):
     """
-    # Simple returns
-    simple_returns = df.pct_change().dropna()
-    simple_returns.columns = [f"{col}_Simple_Returns" for col in simple_returns.columns]
-    
-    # Log returns
-    log_returns = np.log(df / df.shift(1)).dropna()
-    log_returns.columns = [f"{col}_Log_Returns" for col in log_returns.columns]
-    
-    # Combine
-    returns_df = pd.concat([simple_returns, log_returns], axis=1)
-    return simple_returns, log_returns, returns_df
-
-def calculate_annualized_stats(returns_df, trading_days=252):
+    Print basic descriptive statistics.
     """
-    Calculate annualized mean return and volatility from returns DataFrame.
-    
-    Parameters:
-    ----------
-    returns_df : pd.DataFrame
-        DataFrame containing simple returns for assets.
-    trading_days : int, optional (default=252)
-        Number of trading days per year.
-        
-    Returns:
-    -------
-    pd.DataFrame
-        Annualized mean return and volatility for each asset.
-    """
-    returns_mean = returns_df.mean() * trading_days
-    returns_std = returns_df.std() * np.sqrt(trading_days)
+    print("Basic Statistics:")
+    display(df.describe().T)
 
-    summary = pd.DataFrame({
-        'Annualized Mean Return': returns_mean,
-        'Annualized Volatility': returns_std
-    })
-    
-    print("\nAnnualized return and volatility:")
-    return summary
-
-def plot_prices_and_returns(df, returns):
+def plot_prices(df):
     """
-    Plot adjusted close prices and daily simple returns.
-
-    Parameters:
-    df (pd.DataFrame): Adjusted close prices DataFrame.
-    returns (pd.DataFrame): Simple returns DataFrame.
+    Plot adjusted close prices over time.
     """
-    fig, axes = plt.subplots(2, 1, figsize=(14, 10), sharex=True)
-    
-    # Plot adjusted close prices
-    df.plot(ax=axes[0], title='Adjusted Close Prices')
-    axes[0].set_ylabel('Price (USD)')
-    
-    # Plot simple returns
-    returns.plot(ax=axes[1], title='Daily Simple Returns')
-    axes[1].axhline(0, color='k', linewidth=0.5)
-    
-    plt.tight_layout()
+    df.plot(figsize=(12,6), title='Adjusted Close Prices')
+    plt.ylabel('Price ($)')
     plt.show()
 
-def plot_rolling_volatility_30d(log_returns):
+def daily_returns(df):
     """
-    Plot 30-day rolling annualized volatility for each asset.
+    Calculate daily percentage change.
     """
-    window = 30
-    rolling_std = log_returns.rolling(window).std()
+    return df.pct_change().dropna()
 
-    plt.figure(figsize=(14, 6))
-    for col in log_returns.columns:
-        plt.plot(
-            rolling_std[col] * np.sqrt(252),
-            label=f"{col} rolling annualized vol ({window}d)"
-        )
-    plt.legend()
-    plt.title(f"{window}-day Rolling Annualized Volatility")
-    plt.ylabel("Volatility")
+def plot_returns(returns):
+    """
+    Plot daily returns.
+    """
+    returns.plot(figsize=(12,6), title='Daily Returns')
+    plt.ylabel('Daily Return')
     plt.show()
 
-def detect_outlier_days(log_returns, threshold=3):
+def rolling_stats(returns, window=20):
     """
-    Detect outlier days in log returns using z-scores.
-    
-    Parameters:
-    log_returns (pd.DataFrame): DataFrame of log returns for assets
-    threshold (float): z-score threshold to flag outliers (default=3)
-    
-    Returns:
-    pd.DataFrame: DataFrame of outlier days
+    Calculate and plot rolling mean and std deviation.
     """
-    # Compute z-scores
-    z_scores = log_returns.apply(zscore)
+    rolling_mean = returns.rolling(window).mean()
+    rolling_std = returns.rolling(window).std()
     
-    # Filter rows where absolute z-score exceeds the threshold for any asset
-    outlier_days = z_scores[(z_scores.abs() > threshold).any(axis=1)]
+    plt.figure(figsize=(14,7))
+    plt.subplot(2,1,1)
+    rolling_mean.plot(title=f'{window}-Day Rolling Mean of Returns')
+    plt.subplot(2,1,2)
+    rolling_std.plot(title=f'{window}-Day Rolling Std Dev of Returns')
+    plt.show()
     
-    print(f"\nOutlier days (|z|>{threshold}) found: {len(outlier_days)}")
-    return outlier_days
+    return rolling_mean, rolling_std
+
+def detect_outliers(returns, z_thresh=3):
+    """
+    Detect outliers based on Z-score.
+    """
+    from scipy.stats import zscore
+    z_scores = returns.apply(zscore)
+    outliers = (np.abs(z_scores) > z_thresh)
+    return outliers
+
+def adf_test(series, name):
+    """
+    Perform Augmented Dickey-Fuller test for stationarity.
+    """
+    print(f"\nADF Test for {name}:")
+    result = adfuller(series.dropna(), autolag='AIC')
+    print(f"ADF Statistic: {result[0]:.4f}")
+    print(f"p-value: {result[1]:.4f}")
+    for key, value in result[4].items():
+        print(f"Critical Value ({key}): {value:.4f}")
+    if result[1] < 0.05:
+        print(f"Result: {name} is stationary (reject H0)")
+    else:
+        print(f"Result: {name} is non-stationary (fail to reject H0)")
+
+def calculate_var(returns, confidence_level=0.05):
+    """
+    Calculate historical Value at Risk (VaR) at given confidence level.
+    """
+    var = returns.quantile(confidence_level)
+    print(f"\nValue at Risk (VaR) at {int((1-confidence_level)*100)}% confidence level:")
+    print(var)
+    return var
+
+def sharpe_ratio(returns, risk_free_rate=0.0, trading_days=252):
+    """
+    Calculate annualized Sharpe Ratio.
+    """
+    excess_returns = returns - risk_free_rate / trading_days
+    sr = (excess_returns.mean() / excess_returns.std()) * np.sqrt(trading_days)
+    return sr
